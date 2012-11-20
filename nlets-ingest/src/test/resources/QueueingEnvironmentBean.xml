@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+* XML filename				QueueingEnvironmentBean.xml		
+*
+*	This bean configures properties that define the queueing environment, allowing
+*	each environment to be defined by its own queue naming convention.
+*
+* Version info
+* 
+* 	DJDobkin		11/06/2012		Initial version.
+*
+* Copyright notice
+* 
+* 	Copyright (C) National Oceanic and Atmospheric Administration 2012
+*
+-->
+
+<!--
+	Look first for properties in /opt/nww-ei/, but allow them to be overridden
+	if necessary by a file on the project classpath.   
+-->
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:camel="http://camel.apache.org/schema/spring"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+       http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
+
+	<bean class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+	      <property name="locations">
+	            <list>
+	                  <value>file:/opt/nww-ei/etc/queueing.properties</value>
+	                  <!-- <value>classpath:queueing.properties</value>  --> 
+	            </list>
+	      </property>
+	    <!-- 
+	    <property name="ignoreResourceNotFound" value="true" />
+	     -->
+	    <property name="ignoreResourceNotFound" value="false" />
+	    <property name="ignoreUnresolvablePlaceholders" value="true" />
+	</bean>     
+</beans>

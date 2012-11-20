@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+* XML filename				nlets-ingest-camel-context.xml
+*
+*	This file defines the Camel context for the nlets-ingest component
+*	of NWW-EI.  This Camel context will route message from AMQP to
+*	the ActiveMQ ingest queue.  Running the Camel context under
+*	Blueprint enables access to the ServiceMix instance of ActiveMQ.
+*
+* Version info
+* 
+* 	DJDobkin		10/29/2012		Initial version.
+*
+* Copyright notice
+* 
+* 	Copyright (C) National Oceanic and Atmospheric Administration 2012
+*
+-->
+<blueprint
+    xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0"
+    xmlns:cm="http://aries.apache.org/blueprint/xmlns/blueprint-cm/v1.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.osgi.org/xmlns/blueprint/v1.0.0 http://www.osgi.org/xmlns/blueprint/v1.0.0/blueprint.xsd">
+
+	<!--  to define common properties for the queueing environment -->
+    <cm:property-placeholder persistent-id="gov.noaa.ops.nww-ei">
+        <cm:default-properties>
+            <cm:property name="amqp.server" value="localhost"/>
+            <cm:property name="activemq.server" value="localhost"/>
+        </cm:default-properties>
+    </cm:property-placeholder>
+
+    <!-- 2 beans for amqp/qpid -->
+    <bean id="amqp1" class="org.apache.camel.component.amqp.AMQPComponent">
+        <property name="connectionFactory" ref="amqConnectionFactory" />
+    </bean>
+
+    <bean id="amqp2" class="org.apache.camel.component.amqp.AMQPComponent">
+        <property name="connectionFactory" ref="amqConnectionFactory" />
+    </bean>
+    
+    <bean id="amqConnectionFactory" class="org.apache.qpid.client.AMQConnectionFactory">
+	    <property name="host" value="${amqp.server}" />
+	    <property name="port" value="5672" />
+	    <property name="defaultUsername" value="guest" />
+	    <property name="defaultPassword" value="guest" />
+	    <property name="virtualPath" value="/NWW-EI" />
+    </bean>
+
+    <!-- use CF from ActiveMQ blueprint service running in container -->
+    <reference id="connectionFactory" interface="javax.jms.ConnectionFactory" />
+    <bean id="activemq" class="org.apache.activemq.camel.component.ActiveMQComponent">
+        <property name="connectionFactory" ref="connectionFactory" />
+    </bean>
+
+    <!-- the product generator bean-->  
+    <bean id="ingestor" class="gov.noaa.ops.nlets.ingest.NletsIngestBean">
+    </bean> 
+
+    <bean id="failureResponse" class="gov.noaa.ops.nlets.ingest.NletsIngestExceptionProcessor"/>
+
+    <camelContext id="nlets-ingest-camel-context" xmlns="http://camel.apache.org/schema/blueprint" trace="true">
+    
+    	<onException>
+    		<exception>java.lang.Exception</exception>
+    		<handled><constant>true</constant></handled>
+    		<process ref="failureResponse"/>
+    	</onException>
+
+        <route id="test-input-route">
+            <from uri="timer://myTimer?fixedRate=true&amp;period=2000" /> 
+	    	<setBody><constant>test nlets-ingest message</constant></setBody>
+            <to uri="amqp1:queue:nww-ei-ingest" />
+        </route>
+
+        <route id="nlets-ingest-route">
+            <from uri="amqp2:queue:nww-ei-ingest" /> 
+			<setExchangePattern pattern="InOnly"/>
+    		<to uri="bean:ingestor?method=createProduct" />
+    		
+            <to uri="activemq:nlets-ingest" />
+            
+            <!-- 
+            <convertBodyTo type="java.lang.String"/>
+            <to uri="file:/opt/nww-ei/nlets-ingest-out/" />
+            -->
+            
+			<log message="end of nlets-ingest-route"></log>
+        </route>
+
+    </camelContext>
+
+</blueprint>

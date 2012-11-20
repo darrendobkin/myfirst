@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+* XML filename				test-NletsIngestBean-camel-context.xml
+*
+*	This file defines the Camel context for testing the 
+*	NletsIngestBean class.
+*
+* Version info
+* 
+* 	DJDobkin		10/29/2012		Initial version.
+*	DJDobkin		11/13/2012		OnException.
+*
+* Copyright notice
+* 
+* 	Copyright (C) National Oceanic and Atmospheric Administration 2012
+*
+-->
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:camel="http://camel.apache.org/schema/spring"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+       http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
+
+    <!-- the product generator bean-->  
+    <bean id="ingestor" class="gov.noaa.ops.nlets.ingest.NletsIngestBean">
+    </bean> 
+
+    <bean id="failureResponse" class="gov.noaa.ops.nlets.ingest.NletsIngestExceptionProcessor"/>
+
+    <camelContext id="test-NletsIngestBean-camel-context" xmlns="http://camel.apache.org/schema/spring" trace="true">
+    
+    	<onException>
+    		<camel:exception>java.lang.Exception</camel:exception>
+    		<handled><constant>true</constant></handled>
+    		<process ref="failureResponse"/>
+    	</onException>
+
+        <route id="test-NletsIngestBean-route">
+    		<from uri="direct:inputPoint"/>
+    		<log message="Sending ${body} to NletsIngestBean..."/>
+    		<to uri="bean:ingestor?method=createProduct" />
+    		<log message="Received ${body} from NletsIngestBean."/>
+            <to uri="mock:verificationEnd"/>
+        </route>
+        
+    </camelContext>
+    
+</beans>

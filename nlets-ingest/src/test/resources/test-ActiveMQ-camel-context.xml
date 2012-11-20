@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+* XML filename				test-ActiveMQ-camel-context.xml
+*
+*	This file defines the Camel context for testing the connection
+* 	between nlets-ingest and ActiveMQ.
+*
+* Version info
+* 
+* 	DJDobkin		11/06/2012		Initial version.
+*	DJDobkin		11/13/2012		OnException.
+*
+* Copyright notice
+* 
+* 	Copyright (C) National Oceanic and Atmospheric Administration 2012
+*
+-->
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:camel="http://camel.apache.org/schema/spring"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+       http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
+
+	<!--  bean to define common properties for the queueing environment -->
+	<import resource="QueueingEnvironmentBean.xml"/>
+
+	<!-- camel activemq component to connect to the broker -->
+	<bean id="activemq" class="org.apache.activemq.camel.component.ActiveMQComponent">
+		<property name="connectionFactory">
+			<bean class="org.apache.activemq.ActiveMQConnectionFactory">
+				<property name="brokerURL" value="tcp://${activemq.server}:61616" />
+				<property name="userName" value="system" />
+				<property name="password" value="manager" />
+			</bean>
+		</property>
+	</bean>
+
+    <bean id="failureResponse" class="gov.noaa.ops.nlets.ingest.NletsIngestExceptionProcessor"/>
+
+    <camelContext id="test-activemq-camel-context" xmlns="http://camel.apache.org/schema/spring" trace="true">
+    
+    	<onException>
+    		<camel:exception>java.lang.Exception</camel:exception>
+    		<handled><constant>true</constant></handled>
+    		<process ref="failureResponse"/>
+    	</onException>
+
+        <route id="test-activemq-route-1">
+    		<from uri="direct:inputPoint"/>
+    		<log message="Writing ${body} to activemq..."/>
+            <to uri="activemq:queue:nlets-ingest-test" /> 
+    		<log message="Wrote ${body} to activemq."/>
+    	</route>
+    		
+        <route id="test-activemq-route-2">
+            <from uri="activemq:queue:nlets-ingest-test" /> 
+    		<log message="Read ${body} from activemq."/>
+            <to uri="mock:verificationEnd"/>
+    	</route>
+    </camelContext>
+
+</beans>

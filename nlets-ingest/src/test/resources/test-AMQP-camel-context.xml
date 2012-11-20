@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+* XML filename				test-AMQP-camel-context.xml
+*
+*	This file defines the Camel context for testing the connection
+* 	between nlets-ingest and AMQP.
+*
+* Version info
+* 
+* 	DJDobkin		11/06/2012		Initial version.
+*	DJDobkin		11/13/2012		OnException.
+*
+* Copyright notice
+* 
+* 	Copyright (C) National Oceanic and Atmospheric Administration 2012
+*
+-->
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:camel="http://camel.apache.org/schema/spring"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+       http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd">
+
+	<!--  bean to define common properties for the queueing environment -->
+	<import resource="QueueingEnvironmentBean.xml"/>
+
+    <!-- 2 beans for amqp/qpid -->
+    <bean id="amqp1" class="org.apache.camel.component.amqp.AMQPComponent">
+        <property name="connectionFactory" ref="amqConnectionFactory" />
+    </bean>
+    <bean id="amqp2" class="org.apache.camel.component.amqp.AMQPComponent">
+        <property name="connectionFactory" ref="amqConnectionFactory" />
+    </bean>    
+
+    <bean id="amqConnectionFactory" class="org.apache.qpid.client.AMQConnectionFactory">
+	    <constructor-arg name="url" value="amqp://guest:guest@/NWW-EI?brokerlist='tcp://${amqp.server}:5672/'" />
+	</bean>
+
+    <bean id="failureResponse" class="gov.noaa.ops.nlets.ingest.NletsIngestExceptionProcessor"/>
+
+    <camelContext id="test-amqp-camel-context" xmlns="http://camel.apache.org/schema/spring" trace="false">
+    
+    	<onException>
+    		<camel:exception>java.lang.Exception</camel:exception>
+    		<handled><constant>true</constant></handled>
+    		<process ref="failureResponse"/>
+    	</onException>
+
+        <route id="test-amqp-route-1">
+    		<from uri="direct:inputPoint"/>
+			<setExchangePattern pattern="InOnly"/>
+    		<log message="Writing ${body} to AMQP..."/>
+            <to uri="amqp1:queue:nww-ei-ingest-test" /> 
+    		<log message="Wrote ${body} to AMQP."/>
+    	</route>
+     		
+        <route id="test-amqp-route-2">
+            <from uri="amqp2:queue:nww-ei-ingest-test" /> 
+			<setExchangePattern pattern="InOnly"/>
+    		<log message="Read ${body} from AMQP."/>
+            <to uri="mock:verificationEnd"/>
+    	</route>
+     	
+    </camelContext>
+
+</beans>
